@@ -1,5 +1,7 @@
-// 导入必要的模块
-import { Request, Response } from 'cloudflare-pages-functions';
+// Cloudflare Pages Functions 示例代码
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request));
+});
 
 // 特殊规则
 const specialCases = {
@@ -30,6 +32,8 @@ function handleSpecialCases(request) {
 // 处理请求
 async function handleRequest(request) {
   const url = new URL(request.url);
+
+  // 如果访问根路径，返回提示信息
   if (url.pathname === "/") {
     return new Response("Please enter the link after the /", { status: 400 });
   }
@@ -58,10 +62,3 @@ async function handleRequest(request) {
 
   return modifiedResponse;
 }
-
-// Cloudflare Pages Functions 的入口点
-export default {
-  async fetch(request) {
-    return handleRequest(request);
-  }
-};
