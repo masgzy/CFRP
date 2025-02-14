@@ -9,10 +9,21 @@ export default {
     }
 
     // 构造目标 URL，将路径、查询参数和锚点拼接起来
-    const actualUrlStr = url.pathname.replace("/", "") + url.search + url.hash;
-    const actualUrl = new URL(actualUrlStr);
+    const targetUrlStr = url.pathname.replace("/", "") + url.search + url.hash;
 
-    // 创建一个新的请求对象，目标是上面构造的 URL
+    // 检查是否已经有协议头
+    const hasProtocol = targetUrlStr.startsWith("http://") || targetUrlStr.startsWith("https://");
+
+    // 如果没有协议头，尝试动态判断
+    let actualUrlStr;
+    if (!hasProtocol) {
+      actualUrlStr = await detectProtocol(targetUrlStr);
+    } else {
+      actualUrlStr = targetUrlStr;
+    }
+
+    // 创建新的请求对象
+    const actualUrl = new URL(actualUrlStr);
     const modifiedRequest = new Request(actualUrl, {
       headers: request.headers,
       method: request.method,
@@ -64,3 +75,20 @@ export default {
     }
   }
 };
+
+// 动态检测域名是否支持 SSL 证书
+async function detectProtocol(domain) {
+  const httpsUrl = `https://${domain}`;
+  try {
+    // 尝试发起 HTTPS 请求
+    const response = await fetch(httpsUrl, { method: "HEAD", redirect: "manual" });
+    if (response.ok) {
+      // 如果成功，使用 HTTPS
+      return httpsUrl;
+    }
+  } catch (error) {
+    // 如果失败，使用 HTTP
+    console.warn(`HTTPS 请求失败，切换到 HTTP: ${error.message}`);
+  }
+  return `http://${domain}`;
+}
