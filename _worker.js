@@ -68,6 +68,24 @@ export default {
       const modifiedResponse = new Response(response.body, response);
       modifiedResponse.headers.set('Access-Control-Allow-Origin', '*');
 
+      // 如果返回的是 HTML 页面，修改页面中的链接
+      if (response.headers.get('content-type')?.includes('text/html')) {
+        const text = await response.text();
+        const mirrorUrl = url.origin; // 获取当前请求的镜像地址（不包括协议头）
+        const modifiedText = text.replace(/(href|src)="([^"]+)"/g, (match, attr, value) => {
+          if (!value.startsWith('http')) {
+            return `${attr}="${mirrorUrl}${value}"`;
+          }
+          return match;
+        });
+        return new Response(modifiedText, {
+          headers: {
+            ...modifiedResponse.headers,
+            'Content-Type': 'text/html'
+          }
+        });
+      }
+
       return modifiedResponse; // 返回修改后的响应
     } catch (error) {
       // 如果请求失败，返回错误信息
