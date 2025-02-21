@@ -71,17 +71,22 @@ export default {
       // 如果返回的是 HTML 页面，修改页面中的链接
       if (response.headers.get('content-type')?.includes('text/html')) {
         const text = await response.text();
-        const mirrorUrl = url.origin; // 获取当前请求的镜像地址（不包括协议头）
+        const mirrorUrl = `${url.origin}${url.pathname}`; // 获取当前请求的镜像地址
+        const targetBase = actualUrl.origin + actualUrl.pathname; // 获取目标网站的协议头和路径
+
+        // 替换相对链接为绝对路径，并加上镜像路径
         const modifiedText = text.replace(/(href|src)="([^"]+)"/g, (match, attr, value) => {
-          // 如果链接是相对路径，转换为绝对路径
+          // 如果链接是相对路径
           if (!value.startsWith('http') && !value.startsWith('//')) {
-            // 获取目标页面的 base URL
-            const baseUrl = new URL(actualUrl.origin + actualUrl.pathname);
-            const absoluteUrl = new URL(value, baseUrl).href;
-            return `${attr}="${mirrorUrl}${absoluteUrl.replace(actualUrl.origin, "")}"`;
+            // 将相对路径转换为绝对路径
+            const absoluteUrl = new URL(value, targetBase).href;
+            // 替换为镜像路径
+            return `${attr}="${mirrorUrl}${absoluteUrl.replace(targetBase, "")}"`;
           }
-          return match;
+          // 如果是绝对路径，直接加上镜像路径
+          return `${attr}="${mirrorUrl}${value.replace(actualUrl.origin, "")}"`;
         });
+
         return new Response(modifiedText, {
           headers: {
             ...modifiedResponse.headers,
