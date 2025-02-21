@@ -31,9 +31,12 @@ export default {
       if (contentType && contentType.includes('text/html')) {
         const text = await response.text();
         const mirrorUrl = `${url.origin}${url.pathname}`;
-        const modifiedText = text.replace(/(href|src)="([^"]+)"/g, (match, attr, value) => {
+        const modifiedText = text.replace(/(href|src)=["']([^"']+)["']/g, (match, attr, value) => {
+          // 处理绝对路径和相对路径
           if (!value.startsWith('http') && !value.startsWith('#') && !value.startsWith('data:')) {
-            return `${attr}="${mirrorUrl}/${value.startsWith("/") ? value.slice(1) : value}"`;
+            // 使用 URL 对象拼接路径
+            const fullPath = new URL(value, mirrorUrl).href;
+            return `${attr}="${fullPath}"`;
           }
           return match;
         });
