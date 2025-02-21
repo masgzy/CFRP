@@ -101,7 +101,7 @@ async function detectProtocol(domain) {
   }
   return `http://${domain}`;
 }
-se。ok) {
+se.ok) {
       return httpsUrl;
     }
   } catch (error) {
