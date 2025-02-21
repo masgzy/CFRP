@@ -21,24 +21,22 @@ export default {
       headers: request.headers,
       method: request.method,
       body: request.body,
-      redirect: 'follow'
+      redirect: "follow"
     });
 
     try {
       const response = await fetch(modifiedRequest);
-      const contentType = response.headers.get('content-type');
+      const contentType = response.headers.get("content-type");
 
-      if (contentType && contentType.includes('text/html')) {
+      if (contentType && contentType.includes("text/html")) {
         const text = await response.text();
         const mirrorUrl = `${url.origin}${url.pathname}`;
         const modifiedText = text
           // 处理所有 src 属性
-          .replace(/src="([^"]+)"/g, (match, srcValue) => {
-            // 清理 src 属性值中的 HTML 标签
-            const cleanedSrc = srcValue.replace(/<[^>]+>/g, "");
-            if (!cleanedSrc.startsWith('http') && !cleanedSrc.startsWith('#') && !cleanedSrc.startsWith('data:')) {
-              // 处理相对路径
-              if (!cleanedSrc.startsWith('/')) {
+          。replace(/src="([^"]+)"/g, (match, srcValue) => {
+            let cleanedSrc = srcValue.replace(/<[^>]+>/g, ""); // 清理 HTML 标签
+            if (!cleanedSrc.startsWith("http") && !cleanedSrc.startsWith("#") && !cleanedSrc.startsWith("data:")) {
+              if (!cleanedSrc.startsWith("/")) {
                 cleanedSrc = `/${cleanedSrc}`;
               }
               return `src="${mirrorUrl}${cleanedSrc}"`;
@@ -46,8 +44,8 @@ export default {
             return match; // 保留原始值
           })
           // 处理 href 属性
-          .replace(/href="([^"]+)"/g, (match, value) => {
-            if (!value.startsWith('http') && !value.startsWith('#') && !value.startsWith('data:')) {
+          。replace(/href="([^"]+)"/g, (match, value) => {
+            if (!value.startsWith("http") && !value.startsWith("#") && !value.startsWith("data:")) {
               return `href="${mirrorUrl}/${value.startsWith("/") ? value.slice(1) : value}"`;
             }
             return match;
@@ -56,7 +54,7 @@ export default {
         return new Response(modifiedText, {
           headers: {
             ...response.headers,
-            'Content-Type': 'text/html'
+            "Content-Type": "text/html"
           }
         });
       }
