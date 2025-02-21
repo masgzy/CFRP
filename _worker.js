@@ -1,7 +1,7 @@
 export default {
       body: request.body,
       redirect: 'follow'
-    });
+    };
 
     try {
       const response = await fetch(modifiedRequest);
