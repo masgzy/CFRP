@@ -31,18 +31,28 @@ export default {
       if (contentType && contentType.includes('text/html')) {
         const text = await response.text();
         const mirrorUrl = `${url.origin}${url.pathname}`;
-        const modifiedText = text.replace(/(href|src)=["']([^"']+)["']/g, (match, attr, value) => {
-          // 检查是否为相对路径
-          if (!value.startsWith('http') && !value.startsWith('#') && !value.startsWith('data:')) {
-            // 确保不重复添加斜杠
-            if (!mirrorUrl.endsWith("/") && !value.startsWith("/")) {
-              return `${attr}="${mirrorUrl}/${value}"`;
-            } else {
-              return `${attr}="${mirrorUrl}${value}"`;
+        const modifiedText = text
+          // 处理所有 src 属性
+          .replace(/src="([^"]+)"/g, (match, srcValue) => {
+            // 清理 src 属性值中的 HTML 标签
+            const cleanedSrc = srcValue.replace(/<[^>]+>/g, "");
+            if (!cleanedSrc.startsWith('http') && !cleanedSrc.startsWith('#') && !cleanedSrc.startsWith('data:')) {
+              // 处理相对路径
+              if (!cleanedSrc.startsWith('/')) {
+                cleanedSrc = `/${cleanedSrc}`;
+              }
+              return `src="${mirrorUrl}${cleanedSrc}"`;
             }
-          }
-          return match;
-        });
+            return match; // 保留原始值
+          })
+          // 处理 href 属性
+          .replace(/href="([^"]+)"/g, (match, value) => {
+            if (!value.startsWith('http') && !value.startsWith('#') && !value.startsWith('data:')) {
+              return `href="${mirrorUrl}/${value.startsWith("/") ? value.slice(1) : value}"`;
+            }
+            return match;
+          });
+
         return new Response(modifiedText, {
           headers: {
             ...response.headers,
