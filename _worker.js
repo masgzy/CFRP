@@ -47,22 +47,15 @@ export default {
         const mirrorUrl = `${url.origin}${url.pathname}`;
         console.log("代理服务器的 URL:", mirrorUrl); // 调试信息
 
-        // 使用 DOMParser 解析 HTML
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(text, "text/html");
-
-        // 修改相对路径
-        const links = doc.querySelectorAll("a[href], img[src], script[src], link[href]");
-        links.forEach((link) => {
-          const attr = link.getAttribute("href") || link.getAttribute("src");
-          if (!attr.startsWith("http") && !attr.startsWith("#") && !attr.startsWith("data:")) {
-            const newPath = `${mirrorUrl}/${attr.startsWith("/") ? attr.slice(1) : attr}`;
-            link.setAttribute(link.getAttribute("href") ? "href" : "src", newPath);
+        // 使用正则表达式修改 HTML 中的相对路径
+        const modifiedText = text.replace(/(href|src)="([^"]+)"/g, (match, attr, value) => {
+          if (!value.startsWith("http") && !value.startsWith("#") && !value.startsWith("data:")) {
+            return `${attr}="${mirrorUrl}/${value.startsWith("/") ? value.slice(1) : value}"`;
           }
+          return match;
         });
 
         // 返回修改后的 HTML
-        const modifiedText = new XMLSerializer().serializeToString(doc);
         return new Response(modifiedText, {
           headers: {
             ...response.headers,
