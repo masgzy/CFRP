@@ -73,8 +73,12 @@ export default {
         const text = await response.text();
         const mirrorUrl = url.origin; // 获取当前请求的镜像地址（不包括协议头）
         const modifiedText = text.replace(/(href|src)="([^"]+)"/g, (match, attr, value) => {
-          if (!value.startsWith('http')) {
-            return `${attr}="${mirrorUrl}${value}"`;
+          // 如果链接是相对路径，转换为绝对路径
+          if (!value.startsWith('http') && !value.startsWith('//')) {
+            // 获取目标页面的 base URL
+            const baseUrl = new URL(actualUrl.origin + actualUrl.pathname);
+            const absoluteUrl = new URL(value, baseUrl).href;
+            return `${attr}="${mirrorUrl}${absoluteUrl.replace(actualUrl.origin, "")}"`;
           }
           return match;
         });
