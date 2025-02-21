@@ -32,11 +32,14 @@ export default {
         const text = await response.text();
         const mirrorUrl = `${url.origin}${url.pathname}`;
         const modifiedText = text.replace(/(href|src)=["']([^"']+)["']/g, (match, attr, value) => {
-          // 处理绝对路径和相对路径
+          // 检查是否为相对路径
           if (!value.startsWith('http') && !value.startsWith('#') && !value.startsWith('data:')) {
-            // 使用 URL 对象拼接路径
-            const fullPath = new URL(value, mirrorUrl).href;
-            return `${attr}="${fullPath}"`;
+            // 确保不重复添加斜杠
+            if (!mirrorUrl.endsWith("/") && !value.startsWith("/")) {
+              return `${attr}="${mirrorUrl}/${value}"`;
+            } else {
+              return `${attr}="${mirrorUrl}${value}"`;
+            }
           }
           return match;
         });
