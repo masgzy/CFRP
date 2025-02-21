@@ -1,3 +1,21 @@
+// 动态检测域名是否支持 SSL 证书
+async function detectProtocol(domain) {
+  const httpsUrl = `https://${domain}`;
+  try {
+    // 尝试发起 HTTPS 请求
+    const response = await fetch(httpsUrl, { method: "HEAD", redirect: "manual" });
+    if (response.ok || response.status >= 300 && response.status < 400) {
+      // 如果成功，使用 HTTPS
+      return httpsUrl;
+    }
+  } catch (error) {
+    // 如果失败，使用 HTTP
+    console.warn(`HTTPS 请求失败，切换到 HTTP: ${error.message}`);
+  }
+  return `http://${domain}`;
+}
+
+// 主模块：处理 HTTP 请求和响应
 export default {
   async fetch(request, env) {
     // 解析请求的 URL
@@ -22,8 +40,13 @@ export default {
       actualUrlStr = targetUrlStr;
     }
 
-    // 创建新的请求对象
+    // 确保目标 URL 的路径部分以 / 开头
     const actualUrl = new URL(actualUrlStr);
+    if (!actualUrl.pathname.startsWith("/")) {
+      actualUrl.pathname = `/${actualUrl.pathname}`;
+    }
+
+    // 创建新的请求对象
     const modifiedRequest = new Request(actualUrl, {
       headers: request.headers,
       method: request.method,
@@ -103,20 +126,3 @@ export default {
     }
   }
 };
-
-// 动态检测域名是否支持 SSL 证书
-async function detectProtocol(domain) {
-  const httpsUrl = `https://${domain}`;
-  try {
-    // 尝试发起 HTTPS 请求
-    const response = await fetch(httpsUrl, { method: "HEAD", redirect: "manual" });
-    if (response.ok || response.status >= 300 && response.status < 400) {
-      // 如果成功，使用 HTTPS
-      return httpsUrl;
-    }
-  } catch (error) {
-    // 如果失败，使用 HTTP
-    console.warn(`HTTPS 请求失败，切换到 HTTP: ${error.message}`);
-  }
-  return `http://${domain}`;
-}
