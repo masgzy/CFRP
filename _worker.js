@@ -76,15 +76,16 @@ export default {
 
         // 替换相对链接为绝对路径，并加上镜像路径
         const modifiedText = text.replace(/(href|src)="([^"]+)"/g, (match, attr, value) => {
-          // 如果链接是相对路径
-          if (!value.startsWith('http') && !value.startsWith('//')) {
-            // 将相对路径转换为绝对路径
-            const absoluteUrl = new URL(value，'/' , targetBase).href;
-            // 替换为镜像路径
-            return `${attr}="${mirrorUrl}${absoluteUrl.replace(targetBase, "")}"`;
+          // 如果链接是相对路径且没有以 / 开头
+          if (!value.startsWith('http') && !value.startsWith('//') && !value.startsWith('/')) {
+            value = `/${value}`; // 确保路径以 / 开头
           }
-          // 如果是绝对路径，直接加上镜像路径
-          return `${attr}="${mirrorUrl}${value.replace(actualUrl.origin, "")}"`;
+
+          // 将相对路径转换为绝对路径
+          const absoluteUrl = new URL(value, targetBase).href;
+
+          // 替换为镜像路径
+          return `${attr}="${mirrorUrl}${absoluteUrl.replace(targetBase, "")}"`;
         });
 
         return new Response(modifiedText, {
@@ -109,7 +110,7 @@ async function detectProtocol(domain) {
   try {
     // 尝试发起 HTTPS 请求
     const response = await fetch(httpsUrl, { method: "HEAD", redirect: "manual" });
-    if (response.ok) {
+    if (response.ok || response.status >= 300 && response.status < 400) {
       // 如果成功，使用 HTTPS
       return httpsUrl;
     }
