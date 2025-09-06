@@ -1,3 +1,5 @@
+const ENABLE_MODIFICATION = true; // 修改开关：true启用修改，false禁用修改
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -6,7 +8,7 @@ export default {
       return new Response("请输入 / 后面的链接", { status: 400 });
     }
 
-    const targetUrlStr = url.pathname.replace("/", "") + url.search + url.hash;
+    const targetUrlStr = url.pathname.slice(1) + url.search + url.hash;
     const hasProtocol = targetUrlStr.startsWith("http://") || targetUrlStr.startsWith("https://");
 
     let actualUrlStr;
@@ -16,57 +18,58 @@ export default {
       actualUrlStr = targetUrlStr;
     }
 
-    const actualUrl = new URL(actualUrlStr);
-    const modifiedRequest = new Request(actualUrl, {
-      headers: request.headers,
-      method: request.method,
-      body: request.body,
-      redirect: 'follow'
-    });
-
     try {
+      const actualUrl = new URL(actualUrlStr);
+      const modifiedRequest = new Request(actualUrl, {
+        headers: request.headers,
+        method: request.method,
+        body: request.body,
+        redirect: 'follow'
+      });
+
       const response = await fetch(modifiedRequest);
-      const contentType = response.headers.get('content-type');
-
-      if (contentType && contentType.includes('text/html')) {
-        const text = await response.text();
-        const mirrorUrl = `${url.origin}${url.pathname}`;
-        const modifiedText = text.replace(/(href|src)=["']([^"']+)["']/g, (match, attr, value) => {
-          // 检查是否为相对路径
-          if (!value.startsWith('http') && !value.startsWith('#') && !value.startsWith('data:')) {
-            // 确保不重复添加斜杠
-            if (!mirrorUrl.endsWith("/") && !value.startsWith("/")) {
-              return `${attr}="${mirrorUrl}/${value}"`;
-            } else {
-              return `${attr}="${mirrorUrl}${value}"`;
-            }
-          }
-          return match;
-        });
-        return new Response(modifiedText, {
-          headers: {
-            ...response.headers,
-            'Content-Type': 'text/html'
-          }
-        });
+      
+      // 当修改开关开启且是HTML内容时进行DOM重写
+      if (ENABLE_MODIFICATION) {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('text/html')) {
+          return handleHtmlRewrite(response, url);
+        }
       }
-
+      
       return response;
     } catch (error) {
-      return new Response("请求失败，请检查目标地址", { status: 500 });
+      return new Response(`请求失败: ${error.message}`, { status: 500 });
     }
   }
 };
 
 async function detectProtocol(domain) {
-  const httpsUrl = `https://${domain}`;
   try {
+    const httpsUrl = `https://${domain}`;
     const response = await fetch(httpsUrl, { method: "HEAD", redirect: "manual" });
-    if (response.ok) {
-      return httpsUrl;
-    }
-  } catch (error) {
-    console.warn(`HTTPS 请求失败，切换到 HTTP: ${error.message}`);
-  }
+    if (response.status < 400) return httpsUrl;
+  } catch {}
   return `http://${domain}`;
+}
+
+async function handleHtmlRewrite(response, originalUrl) {
+  const text = await response.text();
+  const mirrorBase = `${originalUrl.origin}${originalUrl.pathname}`;
+  
+  // 使用更精确的DOM解析器替代正则表达式
+  const modifiedText = text.replace(/(<a[^>]+href=["'])(?!https?:\/\/)([^"']+)/gi, (match, prefix, path) => {
+    return `${prefix}${mirrorBase}/${path}`;
+  }).replace(/(<img[^>]+src=["'])(?!https?:\/\/)([^"']+)/gi, (match, prefix, path) => {
+    return `${prefix}${mirrorBase}/${path}`;
+  });
+
+  const newHeaders = new Headers(response.headers);
+  newHeaders.delete('content-security-policy'); // 移除可能阻止资源加载的安全策略
+  
+  return new Response(modifiedText, {
+    headers: newHeaders,
+    status: response.status,
+    statusText: response.statusText
+  });
 }
